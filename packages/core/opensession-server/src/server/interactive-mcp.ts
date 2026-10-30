@@ -441,9 +441,19 @@ export function interactiveMcpServers(
  * never the interactive siblings.
  */
 export async function automationSessionMcp(
-  session: { automation?: string; worktreeDir?: string | null },
+  session: Partial<
+    Pick<
+      import("./types").UnifiedSession,
+      "automation" | "worktreeDir" | "externalRefs" | "mode"
+    >
+  >,
   sessionId: string,
 ): Promise<Record<string, unknown>> {
+  if (session.automation === "clickup") {
+    const { clickUpSessionTools } =
+      await import("../agents/clickup/session-tools");
+    return clickUpSessionTools(session);
+  }
   return {
     ...papercutsServerFor(
       sessionId,

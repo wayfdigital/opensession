@@ -16,6 +16,7 @@ export const INTERACTIVE_KINDS = new Set([
 ]);
 
 const UNATTENDED_KINDS = new Set([
+  "clickup",
   "automation",
   "plain",
   "action",

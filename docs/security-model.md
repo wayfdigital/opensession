@@ -1,5 +1,11 @@
 # Security model
 
+ClickUp task intake uses a dedicated user's API token and an explicit Workspace
+and optional List scope. ClickUp runs have the unattended run policy, no external
+MCP connectors, and only task-scoped read/comment/follow-up tools. Planning mounts
+only the read tool. Web UI continuation of a ClickUp-owned session preserves that
+scope. The server holds the token; the coding subprocess never receives it.
+
 Open Session runs agents against untrusted input: customer tickets, channel
 events, webhook payloads, and the open internet. The stance throughout is
 **enforce at the tool/env/credential layer, never just in prompts** — a prompt

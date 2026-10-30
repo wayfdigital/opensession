@@ -25,6 +25,7 @@ import {
 const INTEGRATION_DESCRIPTIONS = new Map([
   ["plain", "Support threads, internal notes, and triage webhooks."],
   ["linear", "Assigned issues become scoped coding sessions."],
+  ["clickup", "Tasks assigned to your AI user become coding sessions."],
   ["slack", "DMs, mentions, session channels, and interactive controls."],
   ["stripe", "Dispute webhooks routed into scoped automations."],
   ["grafana", "Loki failure signatures routed into investigation automations."],

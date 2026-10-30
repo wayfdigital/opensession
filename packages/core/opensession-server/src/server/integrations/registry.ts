@@ -254,6 +254,54 @@ export const INTEGRATIONS: IntegrationSpec[] = [
       return new CodeStorageIntegration();
     },
   },
+  {
+    id: "clickup",
+    label: "ClickUp",
+    doc: "docs/setup/clickup.md",
+    enableFlag: "ENABLE_CLICKUP_AGENT",
+    env: [
+      {
+        name: "CLICKUP_API_TOKEN",
+        required: true,
+        description: "Personal API token of the dedicated AI user",
+      },
+      {
+        name: "CLICKUP_WORKSPACE_ID",
+        required: true,
+        description: "Workspace ID to watch for assignments",
+      },
+      {
+        name: "CLICKUP_LIST_IDS",
+        description: "Optional comma-separated List IDs to restrict intake",
+      },
+      {
+        name: "CLICKUP_POLL_SECONDS",
+        example: "30",
+        description:
+          "Polling interval in seconds, from 10 to 3600 (default 30)",
+      },
+      {
+        name: "CLICKUP_READY_STATUS",
+        example: "ready",
+        description: "Status after planning (default ready)",
+      },
+      {
+        name: "CLICKUP_WORKING_STATUS",
+        example: "in progress",
+        description: "Status that starts implementation (default in progress)",
+      },
+    ],
+    links: [
+      {
+        label: "Create a personal API token",
+        url: "https://developer.clickup.com/docs/authentication",
+      },
+    ],
+    load: async () => {
+      const { ClickUpAgent } = await import("../../agents/clickup/index");
+      return new ClickUpAgent();
+    },
+  },
 ];
 
 export function findIntegration(id: string): IntegrationSpec | undefined {

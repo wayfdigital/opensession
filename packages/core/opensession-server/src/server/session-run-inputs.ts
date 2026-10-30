@@ -128,20 +128,23 @@ export async function resolveSessionRunInputs(
     session.automation || session.automationDescendantPolicy
   );
   const source = sessionMcpScopeSource(session);
-  const mcpServers = session.automationDescendantPolicy
-    ? [...session.automationDescendantPolicy.mcpServers]
-    : isAutomationSession
-      ? await automationMcpServersByName(session.automation!)
-      : source === "session"
-        ? session.mcpServers
-        : source === "feed"
-          ? // Feed-workspace sessions are scoped to their feed's declared MCP
-            // servers even when the session file predates the stamping (least
-            // privilege — the feeds design).
-            await (
-              await import("./feeds")
-            ).feedMcpServersForRefs(session.externalRefs!)
-          : undefined;
+  const mcpServers =
+    session.automation === "clickup"
+      ? []
+      : session.automationDescendantPolicy
+        ? [...session.automationDescendantPolicy.mcpServers]
+        : isAutomationSession
+          ? await automationMcpServersByName(session.automation!)
+          : source === "session"
+            ? session.mcpServers
+            : source === "feed"
+              ? // Feed-workspace sessions are scoped to their feed's declared MCP
+                // servers even when the session file predates the stamping (least
+                // privilege — the feeds design).
+                await (
+                  await import("./feeds")
+                ).feedMcpServersForRefs(session.externalRefs!)
+              : undefined;
   return {
     isAutomationSession,
     mcpServers,

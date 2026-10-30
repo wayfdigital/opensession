@@ -15,6 +15,12 @@ export interface InternalMcpCapability {
 }
 
 export const INTERNAL_MCP_CAPABILITIES = {
+  "clickup-task": {
+    summary:
+      "Read the assigned ClickUp task, comment, and create follow-up tasks.",
+    guidance:
+      "Read the assigned task and its comments for context. Code turns can add notes and create follow-up tasks in the same List. The server posts your final reply; do not duplicate it with add_comment.",
+  },
   "opensession-sessions": {
     summary: "See and steer other sessions, and spawn worker sessions.",
     guidance:

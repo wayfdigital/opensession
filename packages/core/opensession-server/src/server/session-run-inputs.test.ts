@@ -94,6 +94,23 @@ describe("sessionInProcessMcpBranch", () => {
 });
 
 describe("resolveSessionRunInputs", () => {
+  test("ClickUp continuation never falls back to all connectors when no automation record exists", async () => {
+    const inputs = await resolveSessionRunInputs(
+      {
+        ...plain,
+        automation: "clickup",
+        mcpServers: ["slack", "stripe"],
+        createdByLogin: undefined,
+      },
+      { user: "Kent" },
+    );
+    expect(inputs.isAutomationSession).toBe(true);
+    expect(inputs.mcpServers).toEqual([]);
+    expect(inputs.mcpServersSource).toBe("automation");
+    expect(inputs.user).toBeUndefined();
+    expect(inputs.mcpGrantUser).toBeUndefined();
+    expect(inputs.inProcessMcpBranch).toBe("automation-self-improve");
+  });
   test("a normal session keeps the prompter and gets no denials", async () => {
     const inputs = await resolveSessionRunInputs(plain, { user: "Kent" });
     expect(inputs.isAutomationSession).toBe(false);

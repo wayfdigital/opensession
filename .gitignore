@@ -76,6 +76,7 @@ deploy/sandbox/microvm/.cache-busybox-source.tar.bz2
 # with OPENSESSION_STATE_DIR=$PWD/.dev-state; Portals write .ports.conf and
 # .ports/ into the session's working dir)
 .dev-state/
+.local-state/
 .ports.conf
 .ports/
 

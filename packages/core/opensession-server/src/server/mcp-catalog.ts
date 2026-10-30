@@ -61,12 +61,15 @@ import { createChartsMcpServer } from "./charts-mcp";
 import { createDesktopMcpServer } from "./desktop-mcp";
 import { createSelfDeployMcpServer } from "./self-deploy";
 import { createWebMcpServer } from "./web-mcp";
+import { createClickUpTools } from "../agents/clickup/tools";
+import { ClickUpApi } from "../agents/clickup/api";
 
 /**
  * The classes of run that carry in-process servers. One entry per wiring site,
  * because that is the granularity the security model reasons about.
  */
 export type RunClass =
+  | "clickup"
   /** Web UI + native clients: interactiveMcpServers (interactive-mcp.ts). */
   | "interactive"
   /** Automation runs, and interactive resumes of automation-owned sessions. */
@@ -117,12 +120,50 @@ const SESSION_ID = "os-00000000-0000-7000-0000-000000000000";
 const USER = "You";
 const AUTOMATION = "Example automation";
 
+function catalogClickUpTools(readOnly: boolean) {
+  return createClickUpTools({
+    api: new ClickUpApi({ token: "catalog-placeholder" }),
+    task: {
+      id: "example",
+      name: "Example task",
+      url: "https://app.clickup.com/t/example",
+      team_id: "123",
+      list: { id: "456" },
+      status: { status: "open", type: "open" },
+      assignees: [{ id: 1 }],
+      date_updated: "0",
+    },
+    userId: 1,
+    readOnly,
+  });
+}
+
 /** Placeholder callbacks: the generator lists tools, it never calls them. */
 function unused(what: string): never {
   throw new Error(`mcp-catalog placeholder context: ${what} is never called`);
 }
 
 export const MCP_SERVER_CATALOG: McpServerCatalogEntry[] = [
+  {
+    name: "clickup-task",
+    summary: INTERNAL_MCP_CAPABILITIES["clickup-task"].summary,
+    source: "packages/core/opensession-server/src/agents/clickup/tools.ts",
+    wiring: [
+      "packages/core/opensession-server/src/agents/clickup/runtime.ts",
+      "packages/core/opensession-server/src/agents/clickup/session-tools.ts",
+    ],
+    runClasses: ["clickup"],
+    condition:
+      "ClickUp task turns and their web UI continuations only. The task must remain assigned and open in the configured Workspace and Lists.",
+    build: () => catalogClickUpTools(false),
+    variants: [
+      {
+        label: "Planning (read-only)",
+        runClasses: ["clickup"],
+        build: () => catalogClickUpTools(true),
+      },
+    ],
+  },
   {
     name: "opensession-sessions",
     summary: INTERNAL_MCP_CAPABILITIES["opensession-sessions"].summary,

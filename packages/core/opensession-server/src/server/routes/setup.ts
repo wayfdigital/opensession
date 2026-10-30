@@ -216,7 +216,11 @@ async function validateSetting(value: unknown): Promise<string | null> {
  */
 function processIsSupervised(): boolean {
   const xpc = process.env.XPC_SERVICE_NAME;
-  return !!process.env.INVOCATION_ID || (!!xpc && xpc !== "0");
+  return (
+    process.env.OPENSESSION_PROCESS_SUPERVISOR === "local" ||
+    !!process.env.INVOCATION_ID ||
+    (!!xpc && xpc !== "0")
+  );
 }
 
 // Restart-pending flag on globalThis so a duplicate POST (or a hot reload

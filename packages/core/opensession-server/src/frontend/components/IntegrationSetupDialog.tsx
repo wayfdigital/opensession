@@ -138,6 +138,45 @@ function guideFor(integration: SetupIntegration, publicBaseUrl: string): Guide {
         ],
       };
 
+    case "clickup":
+      return {
+        description:
+          "Connect a dedicated ClickUp user with a personal API token.",
+        steps: [
+          <>
+            Create an AI user in ClickUp and give it access to the Lists it
+            should work in.
+          </>,
+          <>
+            Sign in as that user, open Settings → Apps, and generate its
+            personal API token.
+          </>,
+          <>
+            Paste the token and Workspace ID above. The Workspace ID is the
+            number after app.clickup.com/ in your workspace URL. Optionally
+            restrict intake to specific List IDs.
+          </>,
+          <>
+            Enable ClickUp, save, and restart Open Session. Assign a task to the
+            AI user, then reply to its greeting with plan, implement, or an
+            instruction.
+          </>,
+        ],
+        note: (
+          <>
+            Open Session checks assignments every 30 seconds by default. It
+            needs no OAuth application, App Center listing, or public webhook.
+            Use stop in a task comment to cancel a turn.
+          </>
+        ),
+        permissions: [
+          <>
+            The AI user needs permission to read tasks and comments, write
+            comments, update statuses, and create tasks in the selected Lists.
+          </>,
+        ],
+      };
+
     case "linear":
       return {
         description:

@@ -40,6 +40,7 @@ touches an in-process tool:
 
 | Server | Tools | Runs | Condition |
 | --- | --- | --- | --- |
+| [`clickup-task`](#clickup-task) | 3 | clickup | ClickUp task turns and their web UI continuations only. The task must remain assigned and open in the configured Workspace and Lists. |
 | [`opensession-sessions`](#opensession-sessions) | 15 | interactive, Slack loop, automation | Automation runs get it ONLY with the human-set `selfImprove` flag, and then in the `automationSelf` build below. |
 | [`opensession-admin`](#opensession-admin) | 14 | interactive, Slack loop | – |
 | [`opensession-runners`](#opensession-runners) | 5 | interactive | – |
@@ -72,7 +73,38 @@ touches an in-process tool:
 | [`opensession-github`](#opensession-github) | 4 | Slack loop | – |
 | [`opensession-goal-self`](#opensession-goal-self) | 6 | goal wake | Only on a session that carries a goalId. |
 
-31 servers, 141 tools.
+32 servers, 144 tools.
+
+## clickup-task
+
+Read the assigned ClickUp task, comment, and create follow-up tasks.
+
+- **Source** `packages/core/opensession-server/src/agents/clickup/tools.ts`
+- **Wired in** `packages/core/opensession-server/src/agents/clickup/runtime.ts`, `packages/core/opensession-server/src/agents/clickup/session-tools.ts`
+- **Runs** clickup
+- **Condition** ClickUp task turns and their web UI continuations only. The task must remain assigned and open in the configured Workspace and Lists.
+
+### `get_task`
+
+`mcp__clickup-task__get_task` · input: none
+
+Read the assigned ClickUp task and its comments.
+
+### `add_comment`
+
+`mcp__clickup-task__add_comment` · input: `text` (string, required)
+
+Add a separate note to this ClickUp task. The server already posts your final reply.
+
+### `create_task`
+
+`mcp__clickup-task__create_task` · input: `name` (string, required), `markdown_content` (string), `assignees` (integer[]), `priority` (integer), `due_date` (integer), `start_date` (integer), `parent` (string)
+
+Create a follow-up task in the assigned task's List. Leave assignees empty unless explicitly requested. Set parent to the current task ID to create a subtask.
+
+### Variant · Planning (read-only)
+
+Built for: clickup. 1 tools, without `add_comment`, `create_task`.
 
 ## opensession-sessions
 
