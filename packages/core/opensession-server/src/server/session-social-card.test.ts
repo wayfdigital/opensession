@@ -2,6 +2,7 @@ import { afterAll, describe, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
+import { gzipSync } from "zlib";
 import sharp from "sharp";
 import type { UnifiedSession } from "./types";
 
@@ -355,6 +356,124 @@ describe("session social card", () => {
     };
     expect(await hasUsableSessionShot(data)).toBe(false);
     expect(await renderSessionSocialCard(data)).toBeNull();
+  });
+
+  describe("only feeds sniffed raster bytes to sharp", () => {
+    // A renderable SVG with a screenshot-like aspect ratio: if it reached
+    // librsvg it would produce a card, so a null card proves it was refused.
+    const svgBytes = Buffer.from(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360">' +
+        '<rect width="640" height="360" fill="#d92d20"/></svg>',
+    );
+    const card = (shots: string[]) => ({
+      title: "Untrusted transcript image",
+      owner: "Test Person",
+      shots,
+    });
+    const dataUrl = (mime: string, bytes: Buffer) =>
+      `data:${mime};base64,${bytes.toString("base64")}`;
+    const upload = (name: string, bytes: Buffer) => {
+      const path = join(uploadsDir, name);
+      writeFileSync(path, bytes);
+      return path;
+    };
+    const expectNoCard = async (shots: string[]) => {
+      expect(await hasUsableSessionShot(card(shots))).toBe(false);
+      expect(await renderSessionSocialCard(card(shots))).toBeNull();
+    };
+
+    test("sharp itself would rasterize the SVG fixture", async () => {
+      // Guards the tests below: they must fail for the right reason.
+      expect((await sharp(svgBytes).metadata()).format).toBe("svg");
+    });
+
+    test("rejects SVG bytes in a data:image/png URL", async () => {
+      await expectNoCard([dataUrl("image/png", svgBytes)]);
+      await expectNoCard([dataUrl("image/jpeg", svgBytes)]);
+    });
+
+    test("rejects BOM- and whitespace-prefixed SVG labelled as PNG", async () => {
+      const bom = Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), svgBytes]);
+      const spaced = Buffer.concat([Buffer.from("\n  "), svgBytes]);
+      const xml = Buffer.concat([
+        Buffer.from('<?xml version="1.0" encoding="UTF-8"?>\n'),
+        svgBytes,
+      ]);
+      await expectNoCard([
+        dataUrl("image/png", bom),
+        dataUrl("image/png", spaced),
+        upload("bom-svg.png", bom),
+        upload("spaced-svg.png", spaced),
+        upload("xml-svg.png", xml),
+      ]);
+    });
+
+    test("rejects an SVG file named .png", async () => {
+      const path = upload("disguised-svg.png", svgBytes);
+      await expectNoCard([path]);
+      const data = await sessionSocialCardData(
+        session({
+          id: "sess-social-svg-walkthrough",
+          walkthrough: {
+            shots: [{ after: path }],
+          } as unknown as UnifiedSession["walkthrough"],
+        }),
+        { includeShot: true },
+      );
+      expect(await renderSessionSocialCard(data)).toBeNull();
+    });
+
+    test("rejects gzipped SVG (svgz) however it is labelled", async () => {
+      const svgz = gzipSync(svgBytes);
+      await expectNoCard([
+        dataUrl("image/png", svgz),
+        dataUrl("image/gif", svgz),
+        upload("disguised-svgz.png", svgz),
+        upload("disguised-svgz.webp", svgz),
+      ]);
+    });
+
+    test("rejects a data URL whose prefix is not a raster mime", async () => {
+      await expectNoCard([dataUrl("image/svg+xml", svgBytes)]);
+    });
+
+    const base = () =>
+      sharp({
+        create: {
+          width: 640,
+          height: 360,
+          channels: 3,
+          background: "#92b8d9",
+        },
+      });
+    const rasters: Array<[string, () => Promise<Buffer>]> = [
+      ["png", () => base().png().toBuffer()],
+      ["jpeg", () => base().jpeg().toBuffer()],
+      ["webp", () => base().webp().toBuffer()],
+      ["gif", () => base().gif().toBuffer()],
+    ];
+    for (const [format, encode] of rasters) {
+      test(`still renders a real ${format} file and data URL`, async () => {
+        const bytes = await encode();
+        const ext = format === "jpeg" ? "jpg" : format;
+        for (const shot of [
+          upload(`real-${format}.${ext}`, bytes),
+          dataUrl(`image/${format}`, bytes),
+        ]) {
+          expect(await hasUsableSessionShot(card([shot]))).toBe(true);
+          const png = await renderSessionSocialCard(card([shot]));
+          expect(png).not.toBeNull();
+          expect((await sharp(png!).metadata()).format).toBe("png");
+        }
+      });
+    }
+
+    test("a refused SVG does not hide a real screenshot behind it", async () => {
+      const png = await renderSessionSocialCard(
+        card([upload("first-svg.png", svgBytes), testImage("fallback.png")]),
+      );
+      expect(png).not.toBeNull();
+    });
   });
 
   test("injects large-image metadata into the session HTML", async () => {
