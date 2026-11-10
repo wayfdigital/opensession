@@ -19,6 +19,7 @@ import { stateDir } from "./paths";
 import { findSessionAsync } from "./session-cache";
 import { transcript } from "./actor-transcript";
 import { isWithinUploads, stagedImageRef } from "./uploads";
+import { sniffRasterImage, type RasterImageFormat } from "./raster-sniff";
 import type { TranscriptEntry, UnifiedSession } from "./types";
 
 /**
@@ -257,22 +258,61 @@ interface PreparedShot {
 }
 
 interface UsableShotSource {
-  input: Buffer | string;
+  /** The sniffed bytes. sharp only ever sees these, never a path. */
+  input: Buffer;
   sharp: SharpFactory;
 }
 
-/** Apply the renderer's actual screenshot gate without rasterizing the card. */
+const SHARP_RASTER_FORMATS: ReadonlySet<string> = new Set<RasterImageFormat>([
+  "png",
+  "jpeg",
+  "webp",
+  "gif",
+]);
+
+/**
+ * Load a candidate's bytes. A data URL decodes in memory; a file goes through
+ * the same uploads-only gate as candidate selection again, then is read once so
+ * the bytes that are sniffed are the bytes that are decoded.
+ */
+function shotSourceBytes(source: string): Buffer | undefined {
+  if (source.startsWith("data:")) return dataShotBytes(source);
+  if (!usableShot(source)) return undefined;
+  try {
+    const bytes = readFileSync(source);
+    return bytes.length > 0 && bytes.length <= SHOT_MAX_BYTES
+      ? bytes
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Apply the renderer's actual screenshot gate without rasterizing the card.
+ *
+ * The declared data-URL mime and the file extension are only hints. sharp
+ * picks its decoder from the content, so SVG bytes labelled `.png` would still
+ * reach librsvg. Only bytes whose magic number is a plain raster format are
+ * passed on, and sharp must agree on that format.
+ */
 async function usableShotSource(
   source: string | undefined,
 ): Promise<UsableShotSource | undefined> {
   if (!source) return undefined;
   try {
+    const input = shotSourceBytes(source);
+    if (!input) return undefined;
+    const sniffed = sniffRasterImage(input);
+    if (!sniffed) return undefined;
     const sharp = await loadSharp();
     if (!sharp) return undefined;
-    const input = dataShotBytes(source) ?? source;
     const metadata = await sharp(input, {
       limitInputPixels: 40_000_000,
     }).metadata();
+    if (!metadata.format || !SHARP_RASTER_FORMATS.has(metadata.format))
+      return undefined;
+    if (metadata.format !== sniffed) return undefined;
     if (!metadata.width || !metadata.height) return undefined;
     const swapsAxes = [5, 6, 7, 8].includes(metadata.orientation ?? 1);
     const orientedWidth = swapsAxes ? metadata.height : metadata.width;
@@ -305,6 +345,8 @@ async function prepareShot(
   const usable = await usableShotSource(source);
   if (!usable) return undefined;
   try {
+    // The already-sniffed buffer: the file is not reopened between the gate
+    // and the decode.
     const { data, info } = await usable
       .sharp(usable.input, {
         limitInputPixels: 40_000_000,

@@ -40,6 +40,7 @@ import type {
  *  accepts (ProviderConfigInput — not re-exported by the package index). */
 type PiProviderConfigInput = Parameters<ModelRuntime["registerProvider"]>[1];
 import { stateDir } from "./paths";
+import { rasterImageMime, sniffRasterImage } from "./raster-sniff";
 import { audit, summarizeText } from "./audit";
 import {
   journalSet,
@@ -1101,7 +1102,8 @@ export function assertContainedPiPath(
 }
 
 /** Magic-byte image sniff for the guarded read tool (pi's default detector is
- *  not importable standalone; same formats: png/jpeg/gif/webp/bmp). */
+ *  not importable standalone; same formats: png/jpeg/gif/webp/bmp). Shares the
+ *  raster signatures with the social card's decoder gate. */
 function sniffImageMime(path: string): string | undefined {
   try {
     const fd = openSync(path, "r");
@@ -1109,23 +1111,10 @@ function sniffImageMime(path: string): string | undefined {
       const buf = Buffer.alloc(16);
       const n = readSync(fd, buf, 0, 16, 0);
       if (n < 4) return undefined;
-      if (
-        buf[0] === 0x89 &&
-        buf[1] === 0x50 &&
-        buf[2] === 0x4e &&
-        buf[3] === 0x47
-      )
-        return "image/png";
-      if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff)
-        return "image/jpeg";
-      if (buf.toString("ascii", 0, 4) === "GIF8") return "image/gif";
-      if (
-        n >= 12 &&
-        buf.toString("ascii", 0, 4) === "RIFF" &&
-        buf.toString("ascii", 8, 12) === "WEBP"
-      )
-        return "image/webp";
-      if (buf[0] === 0x42 && buf[1] === 0x4d) return "image/bmp";
+      const head = buf.subarray(0, n);
+      const raster = sniffRasterImage(head);
+      if (raster) return rasterImageMime(raster);
+      if (head[0] === 0x42 && head[1] === 0x4d) return "image/bmp";
       return undefined;
     } finally {
       closeSync(fd);
